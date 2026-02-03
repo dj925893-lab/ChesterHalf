@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Chester 1:43</title>
+    <style>
+        :root { --bg: #000; --card: #1c1c1e; --accent: #30d158; --text: #fff; --muted: #8e8e93; --border: #2c2c2e; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: env(safe-area-inset-top) 15px 100px; -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+        .header-card { background: var(--card); border-radius: 20px; padding: 20px; margin: 20px 0; border: 1px solid var(--border); }
+        .countdown { font-size: 42px; font-weight: 900; margin: 0; letter-spacing: -2px; color: var(--accent); }
+        .progress-container { background: #333; height: 10px; border-radius: 5px; margin-top: 15px; overflow: hidden; }
+        #progress-bar { background: var(--accent); height: 100%; width: 0%; transition: width 0.8s ease; }
+        
+        .jump-btn { background: rgba(48, 209, 88, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
+        
+        .phase-header { font-size: 20px; font-weight: 800; color: var(--text); margin: 40px 0 10px; border-bottom: 2px solid var(--accent); display: inline-block; padding-bottom: 4px; }
+        .week-container { margin-bottom: 20px; padding: 10px; border-radius: 12px; transition: 0.3s; }
+        .week-container.active-week { background: rgba(48, 209, 88, 0.08); border: 1px solid rgba(48, 209, 88, 0.3); }
+        .week-label { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .active-week .week-label { color: var(--accent); }
+        .active-tag { font-size: 10px; background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+
+        .run-card { background: var(--card); border-radius: 16px; padding: 18px; margin-bottom: 12px; display: flex; align-items: center; border: 1px solid var(--border); }
+        .run-card.completed { border-color: var(--accent); background: #0a1a0d; opacity: 0.8; }
+        .checkbox { width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 6px; margin-right: 15px; flex-shrink: 0; }
+        .completed .checkbox { background: var(--accent); border-color: var(--accent); position: relative; }
+        .completed .checkbox::after { content: "✓"; position: absolute; color: #000; font-size: 14px; font-weight: 900; left: 4px; top: -1px; }
+        .info { flex-grow: 1; }
+        .day { font-size: 11px; color: var(--accent); font-weight: 800; text-transform: uppercase; }
+        .desc { font-size: 18px; font-weight: 700; margin-top: 2px; }
+        
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: flex-end; }
+        #modal { background: #111; width: 100%; border-radius: 25px 25px 0 0; padding: 35px 25px; box-sizing: border-box; animation: slideUp 0.3s ease; max-height: 85vh; overflow-y: auto; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-title { font-size: 28px; font-weight: 900; }
+        .modal-pace { display: inline-block; background: rgba(48, 209, 88, 0.15); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; margin: 10px 0 20px; }
+        .workout-step { border-left: 2px solid var(--accent); padding-left: 15px; margin-bottom: 20px; }
+        .step-title { font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
+        .journal-box { width: 100%; background: #2c2c2e; border: 1px solid var(--border); border-radius: 12px; padding: 15px; color: #fff; font-family: inherit; margin-top: 10px; box-sizing: border-box; font-size: 16px; }
+        .btn-complete { background: var(--accent); color: #000; border: none; width: 100%; padding: 18px; border-radius: 15px; font-weight: 800; font-size: 17px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="header-card">
+    <p style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 5px;">Road to Chester Half</p>
+    <div id="countdown-timer" class="countdown">--</div>
+    <div class="progress-container"><div id="progress-bar"></div></div>
+</div>
+
+<div id="jump-box" style="text-align: right;">
+    <div class="jump-btn" onclick="jumpToActive()">Jump to Active Week ↓</div>
+</div>
+
+<div id="plan-container"></div>
+
+<div id="modal-overlay" onclick="closeModal()">
+    <div id="modal" onclick="event.stopPropagation()">
+        <div id="modal-content"></div>
+        <textarea id="journal-input" class="journal-box" placeholder="Notes (effort, fuel, weather)..."></textarea>
+        <button id="main-action-btn" class="btn-complete" onclick="confirmCompletion()">Complete Workout</button>
+        <div style="text-align:center; color: var(--muted); margin-top: 20px; font-size: 13px; padding: 10px;" onclick="closeModal()">Dismiss</div>
+    </div>
+</div>
+
+<script>
+    const planData = [
+        {
+            phase: "The Kickoff",
+            weeks: [
+                { start: "2026-02-02", label: "Kickoff Week", runs: [
+                    { id: 1, date: "2026-02-03", day: "Feb 3 Tue", title: "11km Baseline", pace: "5:05/km", warmup: "Leg swings", main: "11km baseline check.", cool: "Foam roll." },
+                    { id: 2, date: "2026-02-05", day: "Feb 5 Thu", title: "5km Recovery", pace: "6:00/km", warmup: "Light walk", main: "Pure recovery. HR low.", cool: "Stretch." },
+                    { id: 3, date: "2026-02-07", day: "Feb 7 Sat", title: "10km Steady", pace: "5:30/km", warmup: "1km Jog", main: "Consistent effort.", cool: "Walk." }
+                ]}
+            ]
+        },
+        {
+            phase: "Foundation Phase",
+            weeks: [
+                { start: "2026-02-09", label: "Week 1", runs: [
+                    { id: 4, date: "2026-02-09", day: "Feb 9 Mon", title: "6x400m Intervals", pace: "4:35/km", warmup: "2km Jog", main: "6x400m fast. 90s rest.", cool: "1km Jog" },
+                    { id: 5, date: "2026-02-11", day: "Feb 11 Wed", title: "6km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "5km at race pace.", cool: "Stretch." },
+                    { id: 6, date: "2026-02-13", day: "Feb 13 Fri", title: "8km Long Run", pace: "6:05/km", warmup: "None", main: "Aerobic base work.", cool: "Rehydrate." }
+                ]},
+                { start: "2026-02-16", label: "Week 2", runs: [
+                    { id: 7, date: "2026-02-16", day: "Feb 16 Mon", title: "8x400m Intervals", pace: "4:35/km", warmup: "2km Jog", main: "8x400m fast.", cool: "1km Jog" },
+                    { id: 8, date: "2026-02-18", day: "Feb 18 Wed", title: "7km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "6km race pace.", cool: "Stretch." },
+                    { id: 9, date: "2026-02-20", day: "Feb 20 Fri", title: "10km Long Run", pace: "6:05/km", warmup: "None", main: "Easy time on feet.", cool: "Refuel." }
+                ]},
+                { start: "2026-02-23", label: "Week 3", runs: [
+                    { id: 10, date: "2026-02-23", day: "Feb 23 Mon", title: "10x400m Intervals", pace: "4:30/km", warmup: "2km Jog", main: "10x400m speed work.", cool: "2km Jog" },
+                    { id: 11, date: "2026-02-25", day: "Feb 25 Wed", title: "8km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "8km at target pace.", cool: "Stretch." },
+                    { id: 12, date: "2026-02-27", day: "Feb 27 Fri", title: "12km Long Run", pace: "6:00/km", warmup: "None", main: "Steady endurance.", cool: "Stretch." }
+                ]}
+            ]
+        },
+        {
+            phase: "Build & Strength",
+            weeks: [
+                { start: "2026-03-02", label: "Week 4 (Deload)", runs: [
+                    { id: 13, date: "2026-03-02", day: "Mar 2 Mon", title: "4km Easy", pace: "6:15/km", warmup: "Stretch", main: "Leg shakeout.", cool: "Relax." },
+                    { id: 14, date: "2026-03-04", day: "Mar 4 Wed", title: "5km Easy", pace: "6:15/km", warmup: "None", main: "Active recovery.", cool: "Stretch." },
+                    { id: 15, date: "2026-03-06", day: "Mar 6 Fri", title: "7km Easy", pace: "6:15/km", warmup: "None", main: "Base maintenance.", cool: "Stretch." }
+                ]},
+                { start: "2026-03-09", label: "Week 5", runs: [
+                    { id: 16, date: "2026-03-09", day: "Mar 9 Mon", title: "5x800m Intervals", pace: "4:40/km", warmup: "2km Jog", main: "5x800m repeats.", cool: "1km Jog" },
+                    { id: 17, date: "2026-03-11", day: "Mar 11 Wed", title: "8km Tempo", pace: "4:50/km", warmup: "1km Jog", main: "Sustained effort.", cool: "Foam roll." },
+                    { id: 18, date: "2026-03-13", day: "Mar 13 Fri", title: "13km Long Run", pace: "5:55/km", warmup: "None", main: "Distance build.", cool: "Refuel." }
+                ]},
+                { start: "2026-03-16", label: "Week 6", runs: [
+                    { id: 19, date: "2026-03-16", day: "Mar 16 Mon", title: "6x800m Intervals", pace: "4:40/km", warmup: "2km Jog", main: "6x800m. 2m rest.", cool: "1km Jog" },
+                    { id: 20, date: "2026-03-18", day: "Mar 18 Wed", title: "10km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "10km at race pace.", cool: "Stretch." },
+                    { id: 21, date: "2026-03-20", day: "Mar 20 Fri", title: "15km Long Run", pace: "5:55/km", warmup: "None", main: "Steady long run.", cool: "Hydrate." }
+                ]},
+                { start: "2026-03-23", label: "Week 7", runs: [
+                    { id: 22, date: "2026-03-23", day: "Mar 23 Mon", title: "4x1km Intervals", pace: "4:35/km", warmup: "2km Jog", main: "1km repeats.", cool: "2km Jog" },
+                    { id: 23, date: "2026-03-25", day: "Mar 25 Wed", title: "12km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "Deep tempo work.", cool: "Stretch." },
+                    { id: 24, date: "2026-03-27", day: "Mar 27 Fri", title: "16km Long Run", pace: "5:55/km", warmup: "None", main: "Building stamina.", cool: "Refuel." }
+                ]}
+            ]
+        },
+        {
+            phase: "Peak Phase",
+            weeks: [
+                { start: "2026-03-30", label: "Week 8 (Deload)", runs: [
+                    { id: 25, date: "2026-03-30", day: "Mar 30 Mon", title: "5km Easy", pace: "6:15/km", warmup: "None", main: "Recovery.", cool: "Stretch." },
+                    { id: 26, date: "2026-04-01", day: "Apr 1 Wed", title: "6km Easy", pace: "6:15/km", warmup: "None", main: "Easy effort.", cool: "Stretch." },
+                    { id: 27, date: "2026-04-03", day: "Apr 3 Fri", title: "10km Easy", pace: "6:15/km", warmup: "None", main: "Active recovery.", cool: "Stretch." }
+                ]},
+                { start: "2026-04-06", label: "Week 9", runs: [
+                    { id: 28, date: "2026-04-06", day: "Apr 6 Mon", title: "5x1km Intervals", pace: "4:35/km", warmup: "2km Jog", main: "Peak speed work.", cool: "1km Jog" },
+                    { id: 29, date: "2026-04-08", day: "Apr 8 Wed", title: "12km Pace Run", pace: "4:55/km", warmup: "1km Jog", main: "Race pace rehearsal.", cool: "Stretch." },
+                    { id: 30, date: "2026-04-10", day: "Apr 10 Fri", title: "18km Long Run", pace: "6:00/km", warmup: "None", main: "Endurance peak.", cool: "Refuel." }
+                ]},
+                { start: "2026-04-13", label: "Week 10", runs: [
+                    { id: 31, date: "2026-04-13", day: "Apr 13 Mon", title: "6x1km Intervals", pace: "4:35/km", warmup: "2km Jog", main: "Final big intervals.", cool: "1km Jog" },
+                    { id: 32, date: "2026-04-15", day: "Apr 15 Wed", title: "14km Tempo", pace: "4:55/km", warmup: "1km Jog", main: "Max tempo session.", cool: "Stretch." },
+                    { id: 33, date: "2026-04-17", day: "Apr 17 Fri", title: "20km Milestone", pace: "6:00/km", warmup: "None", main: "The 20k peak run.", cool: "Major Refuel." }
+                ]},
+                { start: "2026-04-20", label: "Week 11", runs: [
+                    { id: 34, date: "2026-04-20", day: "Apr 20 Mon", title: "3x2km Intervals", pace: "4:45/km", warmup: "2km Jog", main: "Sustained speed.", cool: "2km Jog" },
+                    { id: 35, date: "2026-04-22", day: "Apr 22 Wed", title: "10km Progressive", pace: "4:50/km", warmup: "1km Jog", main: "Finish fast.", cool: "Stretch." },
+                    { id: 36, date: "2026-04-24", day: "Apr 24 Fri", title: "14km Steady", pace: "5:50/km", warmup: "None", main: "Consolidating gains.", cool: "Refuel." }
+                ]}
+            ]
+        },
+        {
+            phase: "Taper & Race",
+            weeks: [
+                { start: "2026-04-27", label: "Week 12", runs: [
+                    { id: 37, date: "2026-04-27", day: "Apr 27 Mon", title: "5x400m Sprints", pace: "Fast", warmup: "2km Jog", main: "Keep legs snappy.", cool: "1km Jog" },
+                    { id: 38, date: "2026-04-29", day: "Apr 29 Wed", title: "6km Taper", pace: "6:00/km", warmup: "None", main: "Dropping volume.", cool: "Stretch." },
+                    { id: 39, date: "2026-05-01", day: "May 1 Fri", title: "8km Taper", pace: "6:00/km", warmup: "None", main: "Easy effort.", cool: "Relax." }
+                ]},
+                { start: "2026-05-04", label: "Week 13", runs: [
+                    { id: 40, date: "2026-05-04", day: "May 4 Mon", title: "4x400m Sharp", pace: "Fast", warmup: "2km Jog", main: "Quick light repeats.", cool: "1km Jog" },
+                    { id: 41, date: "2026-05-06", day: "May 6 Wed", title: "5km Recovery", pace: "Slow", warmup: "None", main: "Pure shakeout.", cool: "Relax." },
+                    { id: 42, date: "2026-05-08", day: "May 8 Fri", title: "6km Very Easy", pace: "Slow", warmup: "None", main: "Keep moving.", cool: "Relax." }
+                ]},
+                { start: "2026-05-11", label: "Race Week", runs: [
+                    { id: 43, date: "2026-05-11", day: "May 11 Mon", title: "3km + Strides", pace: "Slow", warmup: "Stretch", main: "Final leg prep.", cool: "Relax." },
+                    { id: 44, date: "2026-05-13", day: "May 13 Wed", title: "4km Shakeout", pace: "Slow", warmup: "None", main: "Mental focus run.", cool: "Relax." },
+                    { id: 45, date: "2026-05-17", day: "May 17 Sun", title: "CHESTER HALF", pace: "4:55/km", warmup: "2km Jog", main: "Race Day! Sub 1:44.", cool: "MEDAL!" }
+                ]}
+            ]
+        }
+    ];
+
+    let eliteData = JSON.parse(localStorage.getItem('chesterEliteData')) || {};
+    let activeRunId = null;
+
+    function isCurrentWeek(startDateStr) {
+        const now = new Date();
+        const start = new Date(startDateStr);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 7);
+        return now >= start && now < end;
+    }
+
+    function jumpToActive() {
+        const active = document.querySelector('.active-week');
+        if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function openModal(run) {
+        activeRunId = run.id;
+        const entry = eliteData[run.id];
+        document.getElementById('modal-content').innerHTML = `
+            <div class="modal-title">${run.title}</div>
+            <div class="modal-pace">Target: ${run.pace}</div>
+            <div class="workout-step"><div class="step-title">Goal</div><div>${run.main}</div></div>
+            <div class="workout-step"><div class="step-title">Notes History</div><div style="color:#aaa; font-style:italic; font-size:14px;">${entry?.note || "No notes yet..."}</div></div>
+        `;
+        document.getElementById('journal-input').value = entry?.note || "";
+        document.getElementById('main-action-btn').innerText = entry?.done ? "Unmark Workout" : "Complete Workout";
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    function confirmCompletion() {
+        const note = document.getElementById('journal-input').value;
+        if (eliteData[activeRunId]?.done) {
+            delete eliteData[activeRunId];
+        } else {
+            eliteData[activeRunId] = { done: true, note: note };
+            if (window.navigator.vibrate) window.navigator.vibrate(40);
+        }
+        localStorage.setItem('chesterEliteData', JSON.stringify(eliteData));
+        render();
+        closeModal();
+    }
+
+    function render() {
+        const container = document.getElementById('plan-container');
+        container.innerHTML = planData.map(phase => `
+            <div class="phase-header">${phase.phase}</div>
+            ${phase.weeks.map(week => {
+                const isActive = isCurrentWeek(week.start);
+                return `
+                    <div class="week-container ${isActive ? 'active-week' : ''}">
+                        <div class="week-label">
+                            ${week.label} • ${new Date(week.start).toLocaleDateString('en-GB', {day:'numeric', month:'short'})}
+                            ${isActive ? '<span class="active-tag">Active</span>' : ''}
+                        </div>
+                        ${week.runs.map(r => `
+                            <div class="run-card ${eliteData[r.id]?.done ? 'completed' : ''}" onclick='openModal(${JSON.stringify(r)})'>
+                                <div class="checkbox"></div>
+                                <div class="info">
+                                    <div class="day">${r.day}</div>
+                                    <div class="desc">${r.title}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }).join('')}
+        `).join('');
+
+        const completedCount = Object.values(eliteData).filter(v => v.done).length;
+        document.getElementById('progress-bar').style.width = (completedCount / 45 * 100) + "%";
+        
+        const diff = new Date("2026-05-17") - new Date();
+        document.getElementById('countdown-timer').innerText = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+
+    render();
+</script>
+</body>
+</html>
